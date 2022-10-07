@@ -7,6 +7,7 @@ import Animated, { ColorSpace, useAnimatedStyle, useSharedValue, withDelay, with
 import { Dimensions, ColorValue } from 'react-native';
 import { getRandomProperty } from './util'
 import { Ionicons } from '@expo/vector-icons';
+import CommandsModal from './CommandsModal';
 
 const { width, height } = Dimensions.get('window');
 
@@ -30,12 +31,12 @@ const FOTOS = {
   'luciano': 'https://cdn.discordapp.com/avatars/387311552438599682/cc43e3bc44dd23b684e3009d390aa2f9.png?size=1024',
   'canguru': 'https://i.imgur.com/dfHpFMY.png',
   'zé': 'https://cdn.discordapp.com/avatars/522619098933362698/8d27f620d73f7d0601830500d35bb153.png?size=1024',
-  ''
 } as const;
 
 export default function App() {
   const [results, setResults] = useState<string[]>([]);
   const [listening, setListening] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const xPosition = useSharedValue(0);
   const yPosition = useSharedValue(0);
   const zRotation = useSharedValue(0);
@@ -84,6 +85,9 @@ export default function App() {
 
   const onResults = (results: SpeechResultsEvent) => {
     const find = findInArray(results.value ?? []);
+    const MAX_BOTTOM = CONTAINER_HEIGHT - size.value;
+    const MAX_RIGHT = width - size.value;
+
     const colorFound = find('roxo') || find('rosa') || find('preto') || find('azul') || find('verde') || find('amarelo') || find('vermelho');
     if (colorFound) {
       const colors = Object.keys(COLORS) as (keyof typeof COLORS)[];
@@ -91,18 +95,20 @@ export default function App() {
       backgroundColor.value = withTiming(COLORS[colorKey], { duration: 1000 });
     }
     if (find('direita')) {
-      const MAX_RIGHT = width - size.value;
       xPosition.value = withTiming(MAX_RIGHT, { duration: 1000 });
     }
     if (find('esquerda')) {
       xPosition.value = withTiming(0, { duration: 1000 });
     }
     if (find('baixo') || find('baixa')) {
-      const MAX_BOTTOM = CONTAINER_HEIGHT - size.value;
       yPosition.value = withTiming(MAX_BOTTOM, { duration: 1000 });
     }
     if (find('cima')) {
       yPosition.value = withTiming(0, { duration: 1000 });
+    }
+    if (find('centro')) {
+      xPosition.value = withTiming(MAX_RIGHT / 2, { duration: 1000 });
+      yPosition.value = withTiming(MAX_BOTTOM / 2, { duration: 1000 });
     }
     if (find('rodar')) {
       zRotation.value = withTiming(zRotation.value + 360, { duration: 1000 });
@@ -115,14 +121,12 @@ export default function App() {
     if (find('girar') && find('y')) {
       yRotation.value = withTiming(yRotation.value + 180, { duration: 1000 });
     }
+
     if (find('aumentar')) {
       const aumentar = find('aumentar')?.split('aumentar')[1];
       console.log('🚀 ~ file: App.tsx ~ line 113 ~ aumentar', aumentar)
       const multiply = Number(aumentar) || 1;
       console.log('🚀 ~ file: App.tsx ~ line 115 ~ multiply', multiply)
-      const MAX_RIGHT = width - size.value;
-      const MAX_BOTTOM = CONTAINER_HEIGHT - size.value;
-
       const isRight = xPosition.value === MAX_RIGHT
       const isBottom = yPosition.value === MAX_BOTTOM
       withSequence(
@@ -139,6 +143,12 @@ export default function App() {
     }
     if (find('menos bord') || find('menos redond')) {
       borderRadius.value = withTiming(borderRadius.value - 20, { duration: 1000 });
+    }
+    if(find('circulo')){
+      borderRadius.value = withTiming(size.value / 2, { duration: 1000 });
+    }
+    if(find('quadrado')){
+      borderRadius.value = withTiming(0, { duration: 1000 });
     }
     if (find('resetar')) {
       xPosition.value = withTiming(0, { duration: 1000 });
@@ -194,40 +204,67 @@ export default function App() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.squareContainer}>
-        <Animated.View style={[animatedStyle]}/>
-        <Animated.Image style={[animatedStyle, imageAnimatedStyle,{position: 'absolute'}]} resizeMode='contain' source={{ uri: currentImage }} />
+    <>
+      <View style={styles.container}>
+        <View style={styles.squareContainer}>
+          <Animated.View style={[animatedStyle]} />
+          <Animated.Image style={[animatedStyle, imageAnimatedStyle, { position: 'absolute' }]} resizeMode='contain' source={{ uri: currentImage }} />
+        </View>
+        <StatusBar style="auto" />
+        {/* <Button onPress={startVoice} title={!listening ? 'Começar Voice' : 'Parar Voice'} /> */}
+        <View style={styles.row}>
+          <TouchableOpacity onPress={startVoice}>
+            <Ionicons name="mic" size={60} style={{
+              marginTop: 10,
+            }} color={listening ? 'red' : "white"} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              setIsModalOpen(true);
+            }}
+            style={{
+              right: width * 0.1,
+              position: 'absolute',
+            }}>
+            <Ionicons name='book' size={30} color='white' style={{ marginTop: 10 }} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.resultsContainer}>
+          <Text style={{
+            color: 'white',
+            fontSize: 20,
+            fontWeight: 'bold',
+            marginTop: 10,
+          }}>Resultados</Text>
+          {results.map((r: string) => <Text key={r} style={{
+            color: 'white',
+            textAlign: 'center'
+          }}>{r}</Text>)}
+        </View>
       </View>
-      <StatusBar style="auto" />
-      {/* <Button onPress={startVoice} title={!listening ? 'Começar Voice' : 'Parar Voice'} /> */}
-      <TouchableOpacity onPress={startVoice}>
-        <Ionicons name="mic" size={60} style={{
-          marginTop: 10
-        }} color={listening ? 'red' : "black"} />
-      </TouchableOpacity>
-      <View style={styles.resultsContainer}>
-        {results.map((r: string) => <Text key={r} style={{
-          color: 'black'
-        }}>{r}</Text>)}
-      </View>
-    </View>
+      <CommandsModal visible={isModalOpen} setVisible={setIsModalOpen} /></>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#202020',
     alignItems: 'center',
     justifyContent: 'center',
   },
   squareContainer: {
     height: CONTAINER_HEIGHT,
     width: '100%',
-    backgroundColor: '#EAEAEA',
+    backgroundColor: '#424242',
   },
   resultsContainer: {
     height: 100,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    justifyContent: 'center'
   }
 });
